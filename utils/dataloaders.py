@@ -102,6 +102,7 @@ def seed_worker(worker_id):
 
 def create_dataloader(path,
                       imgsz,
+                      imgch,
                       batch_size,
                       stride,
                       single_cls=False,
@@ -124,6 +125,7 @@ def create_dataloader(path,
         dataset = LoadImagesAndLabels(
             path,
             imgsz,
+            imgch,
             batch_size,
             augment=augment,  # augmentation
             hyp=hyp,  # hyperparameters
@@ -238,7 +240,7 @@ class LoadScreenshots:
 
 class LoadImages:
     # YOLOv5 image/video dataloader, i.e. `python detect.py --source image.jpg/vid.mp4`
-    def __init__(self, path, img_size=640, stride=32, auto=True, transforms=None, vid_stride=1):
+    def __init__(self, path, img_size=640, img_ch=3, stride=32, auto=True, transforms=None, vid_stride=1):
         if isinstance(path, str) and Path(path).suffix == '.txt':  # *.txt file with img/vid/dir on each line
             path = Path(path).read_text().rsplit()
         files = []
@@ -258,6 +260,7 @@ class LoadImages:
         ni, nv = len(images), len(videos)
 
         self.img_size = img_size
+        self.img_ch = img_ch
         self.stride = stride
         self.files = images + videos
         self.nf = ni + nv  # number of files
@@ -305,6 +308,8 @@ class LoadImages:
             # Read image
             self.count += 1
             im0 = cv2.imread(path)  # BGR
+            if self.img_ch == 1:
+                im0 = cv2.cvtColor(im0, cv2.COLOR_BGR2GRAY)
             assert im0 is not None, f'Image Not Found {path}'
             s = f'image {self.count}/{self.nf} {path}: '
 
@@ -312,7 +317,12 @@ class LoadImages:
             im = self.transforms(im0)  # transforms
         else:
             im = letterbox(im0, self.img_size, stride=self.stride, auto=self.auto)[0]  # padded resize
-            im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+            # Convert
+            if self.img_ch == 1 and len(im.shape) == 2:
+                im = im[..., None]
+                im = im.transpose( (2, 0, 1) )
+            else:
+                im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
             im = np.ascontiguousarray(im)  # contiguous
 
         return path, im, im0, self.cap, s
@@ -439,6 +449,7 @@ class LoadImagesAndLabels(Dataset):
     def __init__(self,
                  path,
                  img_size=640,
+                 img_ch=3,
                  batch_size=16,
                  augment=False,
                  hyp=None,
@@ -451,6 +462,7 @@ class LoadImagesAndLabels(Dataset):
                  min_items=0,
                  prefix=''):
         self.img_size = img_size
+        self.img_ch = img_ch
         self.augment = augment
         self.hyp = hyp
         self.image_weights = image_weights
@@ -592,7 +604,10 @@ class LoadImagesAndLabels(Dataset):
         b, gb = 0, 1 << 30  # bytes of cached images, bytes per gigabytes
         n = min(self.n, 30)  # extrapolate from 30 random images
         for _ in range(n):
-            im = cv2.imread(random.choice(self.im_files))  # sample image
+            if self.img_ch == 1:
+                im = cv2.imread(random.choice(self.im_files), cv2.COLOR_BGR2GRAY)  # sample image
+            else:
+                im = cv2.imread(random.choice(self.im_files))  # sample image
             ratio = self.img_size / max(im.shape[0], im.shape[1])  # max(h, w)  # ratio
             b += im.nbytes * ratio ** 2
         mem_required = b * self.n / n  # GB required to cache dataset into RAM
@@ -720,7 +735,12 @@ class LoadImagesAndLabels(Dataset):
             labels_out[:, 1:] = torch.from_numpy(labels)
 
         # Convert
-        img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        if self.img_ch == 1:
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+            img = img[..., None]
+            img = img.transpose( (2, 0, 1) )
+        else:
+            img = img.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
         img = np.ascontiguousarray(img)
 
         return torch.from_numpy(img), labels_out, self.im_files[index], shapes
