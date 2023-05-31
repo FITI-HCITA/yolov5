@@ -462,8 +462,8 @@ def parse_opt(known=False):
     parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='Adam', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
-    parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
-    parser.add_argument('--name', default='exp', help='save to project/name')
+    parser.add_argument('--project', default=ROOT / 'results', help='save to project/name')
+    parser.add_argument('--name', default='trial', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--quad', action='store_true', help='quad dataloader')
     parser.add_argument('--cos-lr', action='store_true', help='cosine LR scheduler')
@@ -514,7 +514,9 @@ def main(opt, callbacks=Callbacks()):
             opt.exist_ok, opt.resume = opt.resume, False  # pass resume to exist_ok and disable resume
         if opt.name == 'cfg':
             opt.name = Path(opt.cfg).stem  # use model.yaml as name
-        opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
+        local_t = time.localtime()
+        date_str = str(local_t.tm_year) + '_' + str(local_t.tm_mon) + '_' + str(local_t.tm_mday)
+        opt.save_dir = str(increment_path(Path(opt.project) / date_str / opt.name, exist_ok=opt.exist_ok))
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)
