@@ -88,6 +88,23 @@ pip install -r requirements.txt  # install
 </details>
 
 <details>
+<summary>AI Pipeline</summary>
+
+run auto-training to report generator.
+
+```bash
+python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --epochs 1500 --weights '' --cfg 2head_yolov5n_H05DM011WM0125.yaml  --batch-size 64 --batch-size-tflite 1 --imgch 1 --imgsz 320 --patience 0 --imgsz_tflite 192 --iou-thres 0.5 --conf-thres 0.5 --conf-thres-val 0.4 --include tflite --device 0 --int8
+```
+
+run inference only
+
+```bash
+python3 ai_pipeline.py --data <data yaml path> --conf-thres-test 0 --device 0 --run inference --tflite_model_path <tflite_model_path>
+```
+
+</details>
+
+<details>
 <summary>Inference</summary>
 
 YOLOv5 [PyTorch Hub](https://docs.ultralytics.com/yolov5/tutorials/pytorch_hub_model_loading) inference. [Models](https://github.com/ultralytics/yolov5/tree/master/models) download automatically from the latest

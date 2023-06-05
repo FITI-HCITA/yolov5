@@ -40,7 +40,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 from models.common_ReLU import DetectMultiBackend ## for tflite
 
 from utils.callbacks import Callbacks
-from utils.dataloaders_ch1 import create_dataloader
+from utils.dataloaders import create_dataloader
 from utils.general import (LOGGER, TQDM_BAR_FORMAT, Profile, check_dataset, check_img_size, check_requirements,
                            check_yaml, coco80_to_coco91_class, colorstr, increment_path, non_max_suppression,
                            print_args, scale_boxes, xywh2xyxy, xyxy2xywh)
@@ -103,8 +103,10 @@ def run(
         weights=None,  # model.pt path(s)
         batch_size=32,  # batch size
         imgsz=640,  # inference size (pixels)
+        imgsz_tflite=-1,
         imgch=3,
         conf_thres=0.001,  # confidence threshold
+        conf_thres_val=-1,  # NMS IoU threshold
         iou_thres=0.6,  # NMS IoU threshold
         max_det=300,  # maximum detections per image
         task='val',  # train, val, test, speed or study
@@ -128,7 +130,12 @@ def run(
         plots=True,
         callbacks=Callbacks(),
         compute_loss=None,
+        **kwargs
 ):
+    if imgsz_tflite != -1:
+        imgsz = imgsz_tflite    
+    if conf_thres_val != -1:
+        conf_thres = conf_thres_val    
     # Initialize/load model and set device
     training = model is not None
     if training:  # called by train.py
@@ -139,7 +146,8 @@ def run(
         device = select_device(device, batch_size=batch_size)
 
         # Directories
-        save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
+        save_dir = Path(save_dir)
+        # save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
         (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
 
         # Load model
@@ -374,7 +382,7 @@ def parse_opt():
     return opt
 
 
-def main(opt):
+def evaluate_procedure(opt):
     check_requirements(exclude=('tensorboard', 'thop'))
 
     if opt.task in ('train', 'val', 'test'):  # run normally
@@ -411,4 +419,4 @@ def main(opt):
 
 if __name__ == '__main__':
     opt = parse_opt()
-    main(opt)
+    evaluate_procedure(opt)

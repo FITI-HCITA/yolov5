@@ -77,6 +77,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     w = save_dir / 'weights'  # weights dir
     (w.parent if evolve else w).mkdir(parents=True, exist_ok=True)  # make dir
     last, best = w / 'last.pt', w / 'best.pt'
+    opt.weights = best
 
     # Hyperparameters
     if isinstance(hyp, str):
@@ -445,6 +446,7 @@ def parse_opt(known=False):
     parser.add_argument('--epochs', type=int, default=100, help='total training epochs')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
+    parser.add_argument('--imgsz_tflite', type=int, default=192, help='image size for export to tflite')
     parser.add_argument('--imgch', '--img-ch', type=int, default=3, help='the number of channels of image')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
@@ -480,10 +482,26 @@ def parse_opt(known=False):
     parser.add_argument('--bbox_interval', type=int, default=-1, help='Set bounding-box image logging interval')
     parser.add_argument('--artifact_alias', type=str, default='latest', help='Version of dataset artifact to use')
 
+    # For export    
+    parser.add_argument('--batch-size-tflite', type=int, default=8, help='tflite batch size for all GPUs, -1 for autobatch')
+    parser.add_argument('--iou-thres', type=float, default=0.5, help='TF.js NMS: IoU threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.5, help='TF.js NMS: confidence threshold')
+    parser.add_argument('--int8', action='store_true', help='CoreML/TF INT8 quantization')
+    parser.add_argument(
+        '--include',
+        nargs='+',
+        default=['torchscript'],
+        help='torchscript, onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle')
+
+    # For evaluation
+    parser.add_argument('--conf-thres-test', type=float, default=0.4, help='TF.js NMS: confidence threshold')
+    parser.add_argument('--task', default='val', help='train, val, test, speed or study')
+    parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
+
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
 
-def main(opt, callbacks=Callbacks()):
+def train_procedure(opt, callbacks=Callbacks()):
     # Checks
     if RANK in {-1, 0}:
         print_args(vars(opt))
@@ -638,10 +656,10 @@ def run(**kwargs):
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
-    main(opt)
+    train_procedure(opt)
     return opt
 
 
 if __name__ == '__main__':
     opt = parse_opt()
-    main(opt)
+    train_procedure(opt)

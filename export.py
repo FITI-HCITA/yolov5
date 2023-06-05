@@ -69,7 +69,7 @@ if platform.system() != 'Windows':
 
 from models.experimental import attempt_load
 from models.yolo import ClassificationModel, Detect, DetectionModel, SegmentationModel
-from utils.dataloaders_ch1 import LoadImages
+from utils.dataloaders import LoadImages
 from utils.general import (LOGGER, Profile, check_dataset, check_img_size, check_requirements, check_version,
                            check_yaml, colorstr, file_size, get_default_args, print_args, url2file, yaml_save)
 from utils.torch_utils import select_device, smart_inference_mode
@@ -654,7 +654,7 @@ def pipeline_coreml(model, im, file, names, y, prefix=colorstr('CoreML Pipeline:
 def run(
         data=ROOT / 'data/coco128.yaml',  # 'dataset.yaml path'
         weights=ROOT / 'yolov5s.pt',  # weights path
-        imgsz=(640, 640),  # image (height, width)
+        imgsz=(-1, -1),  # image (height, width)
         imgch=3,
         batch_size=1,  # batch size
         device='cpu',  # cuda device, i.e. 0 or 0,1,2,3 or cpu
@@ -675,7 +675,12 @@ def run(
         topk_all=100,  # TF.js NMS: topk for all classes to keep
         iou_thres=0.45,  # TF.js NMS: IoU threshold
         conf_thres=0.25,  # TF.js NMS: confidence threshold
+        **kwargs
 ):
+    if kwargs.get('imgsz_tflite') != None:
+        imgsz = kwargs['imgsz_tflite']
+    if kwargs.get('batch_size_tflite') != None:
+        batch_size = kwargs['batch_size_tflite']
     t = time.time()
     include = [x.lower() for x in include]  # to lowercase
     fmts = tuple(export_formats()['Argument'][1:])  # --include arguments
@@ -692,7 +697,10 @@ def run(
     model = attempt_load(weights, device=device, inplace=True, fuse=True)  # load FP32 model
 
     # Checks
-    imgsz *= 2 if len(imgsz) == 1 else 1  # expand
+    if isinstance(imgsz, int):
+        imgsz = (imgsz, imgsz)
+    elif len(imgsz) == 1:
+        imgsz *= 2
     if optimize:
         assert device.type == 'cpu', '--optimize not compatible with cuda devices, i.e. use --device cpu'
 
@@ -810,11 +818,12 @@ def parse_opt(known=False):
     return opt
 
 
-def main(opt):
+def export_procedure(opt):
     for opt.weights in (opt.weights if isinstance(opt.weights, list) else [opt.weights]):
-        run(**vars(opt))
-
+        f = run(**vars(opt))
+    opt.weights = f[-1]
+    opt.tflite_model_path = f[-1]
 
 if __name__ == '__main__':
     opt = parse_opt()
-    main(opt)
+    export_procedure(opt)
