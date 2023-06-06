@@ -14,7 +14,7 @@ ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--run', nargs='+', type=str, default=['train', 'export', 'inference'], help='mode for ai pipeline: all, train, export, inference')
-    parser.add_argument('--weights', type=str, default=ROOT / 'yolov5s.pt', help='initial weights path')
+    parser.add_argument('--weights', type=str, default=None, help='initial weights path')
     parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='dataset.yaml path')
     parser.add_argument('--hyp', type=str, default=ROOT / 'data/hyps/hyp.scratch-low.yaml', help='hyperparameters path')
@@ -58,7 +58,7 @@ def parse_opt(known=False):
     parser.add_argument('--artifact_alias', type=str, default='latest', help='Version of dataset artifact to use')
 
     # For export    
-    parser.add_argument('--batch-size-tflite', type=int, default=8, help='tflite batch size for all GPUs, -1 for autobatch')
+    parser.add_argument('--batch-size-tflite', type=int, help='tflite batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='TF.js NMS: IoU threshold')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='TF.js NMS: confidence threshold')
     parser.add_argument('--int8', action='store_true', help='CoreML/TF INT8 quantization')
@@ -73,6 +73,7 @@ def parse_opt(known=False):
     parser.add_argument('--conf-thres-test', type=float, default=0.4, help='TF.js NMS: confidence threshold')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
+    parser.add_argument('--save_dir', type=str, help='xml ave folder path')
 
     return parser.parse_known_args()[0] if known else parser.parse_args()
 

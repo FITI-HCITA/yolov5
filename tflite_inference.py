@@ -408,8 +408,8 @@ def non_max_suppression_objcls(prediction,
 
         # Compute conf
         x[:, 5:] *= x[:, 4:5]  # conf = class_PRs * obj_PRs
-        print("conf:", x[:, 5:])
-        print("-----------end------------")
+        # print("conf:", x[:, 5:])
+        # print("-----------end------------")
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
@@ -490,9 +490,9 @@ def non_max_suppression_objcls(prediction,
                         upd_tabel[output_class_id,10] += 1
             if output[0].cpu().numpy().shape[0] == 0:
                 upd_tabel[0,11] += 1
-        print("upd_tabel", upd_tabel)
-        print("output:", output)
-        print("output_class_conf: ", output_class_conf)
+        # print("upd_tabel", upd_tabel)
+        # print("output:", output)
+        # print("output_class_conf: ", output_class_conf)
         if (time.time() - t) > time_limit:
             # LOGGER.warning(f'WARNING: NMS time limit {time_limit:.3f}s exceeded')
             print(f'WARNING: NMS time limit {time_limit:.3f}s exceeded')
@@ -976,7 +976,7 @@ def infer_images(tflite_model_path,
         conf_thres = kwargs['conf_thres_test']
 
     if generate_conf_excel:
-        table = np.zeros([num_classes,12,num_classes], dtype = int)
+        table = None
 
         obj_0 = [0,1,2,3,4,5,6,7,8] # Socks
         obj_1 = [15,16,17,18,19,20] # PetStool
@@ -997,24 +997,25 @@ def infer_images(tflite_model_path,
     
     cur_idx = 0
     for cur_idx in range(num_images):
-        if((cur_idx+1) % 500 == 0):
-            print(f'cur_idx: {cur_idx+1}')
+        if((cur_idx+1) % 1000 == 0):
+            print(f'Finish Inference Count: {cur_idx+1}')
         img_path = img_paths[cur_idx]
 
         if generate_conf_excel:
-            img_name = Path(img_path).name
-            d = img_name.split('_')
+            dirname = os.path.dirname(img_path)
             # distance = 1
             ### TMP FOR TEST
-            if 'Socks' in img_path:
+            if 'Socks' in dirname:
                 obj_case = 0
-            elif 'PetStool' in img_path:
+            elif 'PetStool' in dirname:
                 obj_case = 15
-            elif 'Bottle' in img_path:
+            elif 'Bottle' in dirname:
                 obj_case = 29
-            elif 'PowerCable' in img_path:
+            elif 'PowerCable' in dirname:
                 obj_case = 21
             else:
+                img_name = Path(img_path).name
+                d = img_name.split('_')
                 floor_type = int(d[0])
                 light_type = int(d[1])
                 obj_case = int(d[2])
@@ -1062,6 +1063,9 @@ def infer_images(tflite_model_path,
         class_confs = class_confs[0].cpu().numpy()
         # print(upd_tabel)
         if generate_conf_excel:
+            if not isinstance(table, np.ndarray) and table == None:            
+                num_classes = y.shape[2] - 5  # number of classes
+                table = np.zeros([num_classes,12,num_classes], dtype = int)
             table[:,:,class_idx_gt] += upd_tabel
 
         # ==== all class confidence
@@ -1191,8 +1195,8 @@ def infer_images(tflite_model_path,
         # else:
     # generate dataframe
     if generate_conf_excel:
-        print('EXCEL')
-        f_excel = pd.ExcelWriter(f'{save_dir}/robot_Photo_inference_obj_conf{conf_thres}.xlsx')
+        excel_path = f'{save_dir}/robot_Photo_inference_obj_conf{conf_thres}.xlsx'
+        f_excel = pd.ExcelWriter(excel_path)
 
         # [num_classes+1(all-accuracy), 11(conf_interval)+2(class_name+val_name)]
         summary_table = np.zeros([num_classes*3+1,11]) 
@@ -1236,7 +1240,7 @@ def infer_images(tflite_model_path,
         summary_table = np.round(summary_table, 2)
 
         summary_sheet = pd.DataFrame(summary_table)
-        summary_sheet.columns = ['0.0', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '1.0'] 
+        summary_sheet.columns = ['conf=0.0', 'conf=0.1', 'conf=0.2', 'conf=0.3', 'conf=0.4', 'conf=0.5', 'conf=0.6', 'conf=0.7', 'conf=0.8', 'conf=0.9', 'conf=1.0'] 
         multi_index = [[], []]
         for class_idx in range(num_classes):
             multi_index[0].append(classIndexName[class_idx])
@@ -1251,10 +1255,11 @@ def infer_images(tflite_model_path,
         for class_idx in range(num_classes):
             table_pd = pd.DataFrame(table[:,:,class_idx])
             table_pd.index = [classIndexName[idx] for idx in range(num_classes)]
-            table_pd.columns = ['0.0', '0.1', '0.2', '0.3', '0.4', '0.5', '0.6', '0.7', '0.8', '0.9', '1.0', 'None']
+            table_pd.columns = ['conf=0.0', 'conf=0.1', 'conf=0.2', 'conf=0.3', 'conf=0.4', 'conf=0.5', 'conf=0.6', 'conf=0.7', 'conf=0.8', 'conf=0.9', 'conf=1.0', 'None'] 
             table_pd.to_excel(f_excel, sheet_name = classIndexName[class_idx])
 
         f_excel.close()        
+        print(f'saved EXCEL at {excel_path}')
 
         # table_pd_0_1 = 
         # table_pd_1_1 = pd.DataFrame(table[:,:,1])
@@ -1295,6 +1300,7 @@ def infer_images(tflite_model_path,
         with open(sa_txt_save_name, 'w') as txtf:
             for txt_line in sa_txt:
                 print(txt_line, file = txtf)
+        print(f'saved SA(TXT) at {sa_txt_save_name}')
 
 def evaluate_procedure(opt):
     infer_images(**vars(opt))
