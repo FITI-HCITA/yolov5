@@ -322,6 +322,7 @@ def non_max_suppression(prediction,
 
 # copy from yolov5.utils.general
 def non_max_suppression_objcls(prediction,
+                               class_idx_gt=0,
                         conf_thres=0.25,
                         iou_thres=0.45,
                         classes=None,
@@ -400,7 +401,7 @@ def non_max_suppression_objcls(prediction,
         # If none remain process next image
         if not x.shape[0]:
             if ENABLE_GENERATE_CONF_EXCEL:
-                upd_tabel[0,11] += 1
+                upd_tabel[class_idx_gt,11] += 1
             continue
         
         max_boxes = []
@@ -440,7 +441,7 @@ def non_max_suppression_objcls(prediction,
         n = x.shape[0]  # number of boxes
         if not n:  # no boxes
             if ENABLE_GENERATE_CONF_EXCEL:
-                upd_tabel[0,11] += 1
+                upd_tabel[class_idx_gt,11] += 1
             continue
         elif n > max_nms:  # excess boxes
             x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence
@@ -489,7 +490,7 @@ def non_max_suppression_objcls(prediction,
                     elif str(output_conf_value).split('.')[0] == '1':
                         upd_tabel[output_class_id,10] += 1
             if output[0].cpu().numpy().shape[0] == 0:
-                upd_tabel[0,11] += 1
+                upd_tabel[class_idx_gt,11] += 1
         # print("upd_tabel", upd_tabel)
         # print("output:", output)
         # print("output_class_conf: ", output_class_conf)
@@ -1001,33 +1002,32 @@ def infer_images(tflite_model_path,
             print(f'Finish Inference Count: {cur_idx+1}')
         img_path = img_paths[cur_idx]
 
-        if generate_conf_excel:
-            dirname = os.path.dirname(img_path)
-            # distance = 1
-            ### TMP FOR TEST
-            if 'Socks' in dirname:
-                obj_case = 0
-            elif 'PetStool' in dirname:
-                obj_case = 15
-            elif 'Bottle' in dirname:
-                obj_case = 29
-            elif 'PowerCable' in dirname:
-                obj_case = 21
-            else:
-                img_name = Path(img_path).name
-                d = img_name.split('_')
-                floor_type = int(d[0])
-                light_type = int(d[1])
-                obj_case = int(d[2])
-                # distance = int(d[3])
-                raise Exception(f"{img_path} is not in PetStool or PowerCable or Socks")
+        dirname = os.path.dirname(img_path)
+        # distance = 1
+        ### TMP FOR TEST
+        if 'Socks' in dirname:
+            obj_case = 0
+        elif 'PetStool' in dirname:
+            obj_case = 15
+        elif 'Bottle' in dirname:
+            obj_case = 29
+        elif 'PowerCable' in dirname:
+            obj_case = 21
+        else:
+            img_name = Path(img_path).name
+            d = img_name.split('_')
+            floor_type = int(d[0])
+            light_type = int(d[1])
+            obj_case = int(d[2])
+            # distance = int(d[3])
+            raise Exception(f"{img_path} is not in PetStool or PowerCable or Socks")
 
-            ### TMP FOR TEST
+        ### TMP FOR TEST
 
-            class_idx_gt = None
-            for i in range(len(obj_all_case)):
-                if obj_case in obj_all_case[i]:
-                    class_idx_gt = i
+        class_idx_gt = None
+        for i in range(len(obj_all_case)):
+            if obj_case in obj_all_case[i]:
+                class_idx_gt = i
 
             # if distance == 1: # 10 cm
             #     upd_tab_id = class_idx_gt
@@ -1057,7 +1057,7 @@ def infer_images(tflite_model_path,
             y = torch.tensor(y, device=device)
 
         # bndboxes, class_confs, upd_tabel = mt_NMS(pred=y, conf_thres=confThr, iou_thres=iou_thres, obj_thres= objThr)
-        bndboxes, class_confs, upd_tabel = non_max_suppression_objcls(y, conf_thres=conf_thres, iou_thres=iou_thres)
+        bndboxes, class_confs, upd_tabel = non_max_suppression_objcls(y, class_idx_gt, conf_thres=conf_thres, iou_thres=iou_thres)
         # print("bndboxes:", bndboxes)
         bndboxes = bndboxes[0].cpu().numpy()
         class_confs = class_confs[0].cpu().numpy()
@@ -1195,11 +1195,15 @@ def infer_images(tflite_model_path,
         # else:
     # generate dataframe
     if generate_conf_excel:
-        excel_path = f'{save_dir}/robot_Photo_inference_obj_conf{conf_thres}.xlsx'
+        excel_path = os.path.join(save_dir, f'robot_Photo_inference_obj_conf{conf_thres}.xlsx')
         f_excel = pd.ExcelWriter(excel_path)
 
         # [num_classes+1(all-accuracy), 11(conf_interval)+2(class_name+val_name)]
-        summary_table = np.zeros([num_classes*3+1,11]) 
+        num_measurement = 4
+        summary_table = np.zeros([num_classes*num_measurement+1,11]) 
+        confusion_matrix = np.zeros([num_classes, num_classes])
+        confusion_matrix_sheets = list()
+
         num_data_per_class = [np.sum(table[..., i]) for i in range(num_classes)]
 
         class_detect_cnt = [0] * num_classes
@@ -1207,6 +1211,7 @@ def infer_images(tflite_model_path,
         wrong_cnt = [0] * num_classes
         for conf_idx in range(10, -1, -1):
             for class_idx in range(num_classes):
+                confusion_matrix[class_idx] += table[:, conf_idx, class_idx]
                 class_detect_cnt += table[:, conf_idx, class_idx]
                 correct_cnt[class_idx] += table[class_idx, conf_idx, class_idx]
                 wrong_cnt[class_idx] += np.sum(table[:, conf_idx, class_idx]) - table[class_idx, conf_idx, class_idx]
@@ -1220,44 +1225,92 @@ def infer_images(tflite_model_path,
 
                 # summary_table[class_idx*3, 0] = classIndexName[class_idx]
                 # summary_table[class_idx*3, 1] = 'Recall'
-                summary_table[class_idx*3, conf_idx] =  recall
+                summary_table[class_idx*num_measurement, conf_idx] =  recall
 
                 # summary_table[class_idx*3+2, 0] = classIndexName[class_idx]
                 # summary_table[class_idx*3+2, 1] = 'Object View'
-                summary_table[class_idx*3+2, conf_idx] = object_view
+                summary_table[class_idx*num_measurement+2, conf_idx] = object_view
 
             for class_idx in range(num_classes):
                 if class_detect_cnt[class_idx]:
                     precision = correct_cnt[class_idx] / class_detect_cnt[class_idx]
                 else:
                     precision = 0
+
+                recall = summary_table[class_idx*num_measurement, conf_idx]
+                if precision+recall:
+                    f1_score = float(2) * precision * recall / (precision + recall)
+                else:
+                    f1_score = 0
+                
                 # summary_table[class_idx*3+1, 0] = classIndexName[class_idx]
                 # summary_table[class_idx*3+1, 1] = 'Precision'
-                summary_table[class_idx*3+1, conf_idx] =  precision
+                summary_table[class_idx*num_measurement+1, conf_idx] =  precision
+                summary_table[class_idx*num_measurement+3, conf_idx] =  f1_score
+
             # summary_table[-1, 0] = 'All'
             # summary_table[-1, 1] = 'Accuracy'
             summary_table[-1, conf_idx] =  np.sum(correct_cnt) / np.sum(num_data_per_class)
-        summary_table = np.round(summary_table, 2)
 
+            confusion_matrix_sheet = pd.DataFrame(confusion_matrix.copy())
+            multi_index = [[classIndexName[idx] for idx in range(num_classes)]]
+            multi_index = pd.MultiIndex.from_product(multi_index, names=['Predicted'])
+            confusion_matrix_sheet.columns = multi_index
+            multi_index = [[], []]
+            multi_index[0].append(np.round(conf_idx*0.1, 1))
+            for class_idx in range(num_classes):
+                multi_index[1].append(classIndexName[class_idx])
+            multi_index = pd.MultiIndex.from_product(multi_index, names=['Confidence', 'Acutal'])
+            confusion_matrix_sheet.index = multi_index
+            confusion_matrix_sheets.append(confusion_matrix_sheet)
+
+
+
+        summary_table = np.round(summary_table, 3)
         summary_sheet = pd.DataFrame(summary_table)
-        summary_sheet.columns = ['conf=0.0', 'conf=0.1', 'conf=0.2', 'conf=0.3', 'conf=0.4', 'conf=0.5', 'conf=0.6', 'conf=0.7', 'conf=0.8', 'conf=0.9', 'conf=1.0'] 
+        multi_index_columns = [[str(np.round(i*0.1, 1)) for i in range(11)]]
+        summary_sheet.columns = pd.MultiIndex.from_product(multi_index_columns, names=['Confidence'])
         multi_index = [[], []]
         for class_idx in range(num_classes):
             multi_index[0].append(classIndexName[class_idx])
         multi_index[1].append('Recall')
         multi_index[1].append('Precision')
         multi_index[1].append('Object View')    
+        multi_index[1].append('F1 Score')    
         multi_index = pd.MultiIndex.from_product(multi_index, names=["Class Name", "Measurement"])
         multi_index = multi_index.append(pd.MultiIndex.from_arrays([['All'], ['Accuracy']]))
         summary_sheet.index = multi_index
         summary_sheet.to_excel(f_excel, sheet_name = 'Summary')
 
+        #auto-adjust column width
+        for column in summary_sheet:
+            column_length = max(summary_sheet[column].astype(str).map(len).max(), len(column))
+            col_idx = summary_sheet.columns.get_loc(column)
+            f_excel.sheets['Summary'].set_column(col_idx, col_idx, column_length+10)
+
+        confusion_matrix_sheets = pd.concat([confusion_matrix_sheet for confusion_matrix_sheet in confusion_matrix_sheets], axis=0)
+        confusion_matrix_sheets.to_excel(f_excel, sheet_name = 'Confusion Matrix')
+        #auto-adjust column width
+        for column in confusion_matrix_sheets:
+            column_length = max(confusion_matrix_sheets[column].astype(str).map(len).max(), len(column))
+            col_idx = confusion_matrix_sheets.columns.get_loc(column)
+            f_excel.sheets['Confusion Matrix'].set_column(col_idx, col_idx, column_length+10)
+
         for class_idx in range(num_classes):
             table_pd = pd.DataFrame(table[:,:,class_idx])
             table_pd.index = [classIndexName[idx] for idx in range(num_classes)]
-            table_pd.columns = ['conf=0.0', 'conf=0.1', 'conf=0.2', 'conf=0.3', 'conf=0.4', 'conf=0.5', 'conf=0.6', 'conf=0.7', 'conf=0.8', 'conf=0.9', 'conf=1.0', 'None'] 
-            table_pd.to_excel(f_excel, sheet_name = classIndexName[class_idx])
+            multi_index_columns = [[str(np.round(i*0.1, 1)) for i in range(11)]]
+            multi_index_columns[0].append('None')
+            table_pd.columns = pd.MultiIndex.from_product(multi_index_columns, names=['Confidence'])
+            table_pd.to_excel(f_excel, sheet_name = classIndexName[class_idx], na_rep='NaN')
+        
+            #auto-adjust column width
+            for column in table_pd:
+                column_length = max(table_pd[column].astype(str).map(len).max(), len(column))
+                col_idx = table_pd.columns.get_loc(column)
+                f_excel.sheets[classIndexName[class_idx]].set_column(col_idx, col_idx, column_length+10)
 
+        # f_excel.save()
         f_excel.close()        
         print(f'saved EXCEL at {excel_path}')
 
@@ -1296,7 +1349,7 @@ def infer_images(tflite_model_path,
             # table_pd_4.to_excel(writer, sheet_name = 'both_overlap')
             # table_pd_5.to_excel(writer, sheet_name = 'fist_back')
     if generate_sa_txt:
-        sa_txt_save_name = f'{save_dir}/ROT_infer.txt'
+        sa_txt_save_name = os.path.join(save_dir, 'ROT_infer.txt')
         with open(sa_txt_save_name, 'w') as txtf:
             for txt_line in sa_txt:
                 print(txt_line, file = txtf)

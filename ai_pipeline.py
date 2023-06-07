@@ -70,7 +70,7 @@ def parse_opt(known=False):
 
     # For evaluation
     parser.add_argument('--tflite_model_path', type=str, default=None, help='tflite model path')
-    parser.add_argument('--conf-thres-test', type=float, default=0.4, help='TF.js NMS: confidence threshold')
+    parser.add_argument('--conf-thres-test', type=float, help='TF.js NMS: confidence threshold')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
     parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
     parser.add_argument('--save_dir', type=str, help='xml ave folder path')
