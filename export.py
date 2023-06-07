@@ -351,6 +351,8 @@ def export_saved_model(model,
 
     from models.tf import TFModel
 
+    tf.config.set_visible_devices([], 'GPU')
+
     LOGGER.info(f'\n{prefix} starting export with tensorflow {tf.__version__}...')
     f = str(file).replace('.pt', '_saved_model')
     batch_size, ch, *imgsz = list(im.shape)  # BCHW
