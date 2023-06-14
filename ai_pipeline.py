@@ -23,6 +23,7 @@ def parse_opt(known=False):
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--imgsz_tflite', type=int, default=192, help='image size for export to tflite')
     parser.add_argument('--imgch', '--img-ch', type=int, default=3, help='the number of channels of image')
+    parser.add_argument('--top_n_min_score', type=float, default=0.6, help='minimum score for saving top n models')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')

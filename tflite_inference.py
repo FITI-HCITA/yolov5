@@ -979,17 +979,17 @@ def infer_images(tflite_model_path,
     if generate_conf_excel:
         table = None
 
-        obj_0 = [0,1,2,3,4,5,6,7,8] # Socks
-        obj_1 = [15,16,17,18,19,20] # PetStool
-        obj_2 = [29,30,31,32]       # Bottle
-        obj_3 = [21,22,23,24]       # PowerCable
-        obj_4 = [9,10,11,12,13,14]  # Slippers
-        obj_5 = [25,26,27,28]       # Scale
-        obj_6 = [33,34,45]          # ChairLeg
-        obj_7 = [37,38]             # Cup
-        obj_8 = [35,36]             # Fan
-        obj_9 = [39,40,41,42]       # Shoes
-        obj_10 = [43,44]            # Feet
+        obj_0 = [0,1,2,3,4,5,6,7,8,9,10,11,12,13]           # Socks
+        obj_1 = [14,15,16,17,18,19,20,21,22]                # PetStool
+        obj_2 = [37,38,39,40,41,42,43,44,45,46,47,48]       # Bottle
+        obj_3 = [23,24,25,26,27,28,29,30,31,32,33,34,35,36] # PowerCable
+        obj_4 = []                                          # Slippers
+        obj_5 = []                                          # Scale
+        obj_6 = []                                          # ChairLeg
+        obj_7 = []                                          # Cup
+        obj_8 = []                                          # Fan
+        obj_9 = []                                          # Shoes
+        obj_10 = []                                         # Feet
         obj_all_case = [obj_0, obj_1, obj_2, obj_3, obj_4, obj_5, obj_6, obj_7, obj_8, obj_9, obj_10]
     
     if generate_sa_txt:
@@ -1008,11 +1008,11 @@ def infer_images(tflite_model_path,
         if 'Socks' in dirname:
             obj_case = 0
         elif 'PetStool' in dirname:
-            obj_case = 15
+            obj_case = 14
         elif 'Bottle' in dirname:
-            obj_case = 29
+            obj_case = 37
         elif 'PowerCable' in dirname:
-            obj_case = 21
+            obj_case = 23
         else:
             img_name = Path(img_path).name
             d = img_name.split('_')
@@ -1020,7 +1020,7 @@ def infer_images(tflite_model_path,
             light_type = int(d[1])
             obj_case = int(d[2])
             # distance = int(d[3])
-            raise Exception(f"{img_path} is not in PetStool or PowerCable or Socks")
+            # raise Exception(f"{img_path} is not in PetStool or PowerCable or Socks")
 
         ### TMP FOR TEST
 
@@ -1097,8 +1097,8 @@ def infer_images(tflite_model_path,
         predictions = []
         if generate_sa_txt:
             if bndboxes.shape[0] == 0:
-                # inference_detail = f"{int(d[0])}_{int(d[1])}_{int(d[2])}_{int(d[3])}_{int(d[4])}_{d[5]}_msg_255_0_0_0_0_0"
-                inference_detail = f"msg_255_0_0_0_0_0"
+                inference_detail = f"{int(d[0])}_{int(d[1])}_{int(d[2])}_{int(d[3])}_{int(d[4])}_{d[5]}_msg_255_0_0_0_0_0"
+                # inference_detail = f"msg_255_0_0_0_0_0"
                 sa_txt.append(inference_detail)
 
 
@@ -1122,8 +1122,8 @@ def infer_images(tflite_model_path,
 
             if generate_sa_txt:
                 score = float(bndboxes[i][4])*100
-                # inference_detail = f"{int(d[0])}_{int(d[1])}_{int(d[2])}_{int(d[3])}_{int(d[4])}_{d[5]}_msg_{cls_idx}_{x0}_{y0}_{x1}_{y1}_{score}"
-                inference_detail = f"msg_{cls_idx}_{x0}_{y0}_{x1}_{y1}_{score}"
+                inference_detail = f"{int(d[0])}_{int(d[1])}_{int(d[2])}_{int(d[3])}_{int(d[4])}_{d[5]}_msg_{cls_idx}_{x0}_{y0}_{x1}_{y1}_{score}"
+                # inference_detail = f"msg_{cls_idx}_{x0}_{y0}_{x1}_{y1}_{score}"
                 sa_txt.append(inference_detail)
 
             x0 = int(bndboxes[i][0] * img_w * image_scale)
@@ -1195,7 +1195,7 @@ def infer_images(tflite_model_path,
         # else:
     # generate dataframe
     if generate_conf_excel:
-        excel_path = os.path.join(save_dir, f'robot_Photo_inference_obj_conf{conf_thres}.xlsx')
+        excel_path = os.path.join(save_dir, f'robot_Photo_inference_obj_conf{conf_thres}_{str(Path(tflite_model_path).stem)}.xlsx')
         f_excel = pd.ExcelWriter(excel_path)
 
         # [num_classes+1(all-accuracy), 11(conf_interval)+2(class_name+val_name)]
@@ -1349,7 +1349,7 @@ def infer_images(tflite_model_path,
             # table_pd_4.to_excel(writer, sheet_name = 'both_overlap')
             # table_pd_5.to_excel(writer, sheet_name = 'fist_back')
     if generate_sa_txt:
-        sa_txt_save_name = os.path.join(save_dir, 'ROT_infer.txt')
+        sa_txt_save_name = os.path.join(save_dir, f'ROT_infer_{str(Path(tflite_model_path).stem)}.txt')
         with open(sa_txt_save_name, 'w') as txtf:
             for txt_line in sa_txt:
                 print(txt_line, file = txtf)
