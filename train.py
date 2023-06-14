@@ -60,6 +60,7 @@ from utils.metrics import fitness
 from utils.plots import plot_evolve
 from utils.torch_utils import (EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer,
                                smart_resume, torch_distributed_zero_first)
+from utils.hcita.save import save_top_N_model
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -78,6 +79,10 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     (w.parent if evolve else w).mkdir(parents=True, exist_ok=True)  # make dir
     last, best = w / 'last.pt', w / 'best.pt'
     opt.weights = best
+    # Create directory for saving Top N model 
+    time_text = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    top_n_save_path = save_dir / time_text
+    Path(top_n_save_path).mkdir(parents=True, exist_ok=True)
 
     # Hyperparameters
     if isinstance(hyp, str):
@@ -387,6 +392,17 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     'git': GIT_INFO,  # {remote, branch, commit} if a git repo
                     'date': datetime.now().isoformat()}
 
+                # Store Top 5 Precision and Recall rate model
+                score_dict = {'p': results[0]
+                            , 'r': results[1]
+                            , 'map50': results[3]
+                            #, 'map5095': results[4]
+                            }
+
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='p', score_dict=score_dict) # Store Top 5 Precision models
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='r', score_dict=score_dict) # Store Top 5 Recall models
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='avg', score_dict=score_dict) # Store Top 5 Average models
+
                 # Save last, best and delete
                 torch.save(ckpt, last)
                 if best_fitness == fi:
@@ -448,6 +464,7 @@ def parse_opt(known=False):
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
     parser.add_argument('--imgsz_tflite', type=int, default=192, help='image size for export to tflite')
     parser.add_argument('--imgch', '--img-ch', type=int, default=3, help='the number of channels of image')
+    parser.add_argument('--top_n_min_score', type=float, default=0.6, help='minimum score for saving top n models')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')

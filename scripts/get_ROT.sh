@@ -38,7 +38,7 @@ fi
 d='data/datasets/' # unzip directory
 d_label='data/training_cfg/labels/Data_center/'
 url=http://192.168.9.93:8000/ROT_AI/
-files="ROT_4_classes.zip IR_Extended_dataset_infer_4class.zip ROT_gray_192x192_IRLed.zip GC_IRCAM_TEST_2023-05-29.zip"
+files="ROT_4_classes.zip IR_Extended_dataset_infer_4class.zip ROT_gray_192x192_IRLed.zip GC_IRCAM_TEST_2023-05-29.zip SA_ROT_IR_gray_192x192_20230526.zip SA_ROT_gray_IRLed_20230526.zip"
 for file in $files
 do
   echo 'Downloading' $url$f ' ...'
