@@ -50,6 +50,52 @@ To request an Enterprise License please complete the form at [Ultralytics Licens
 </div>
 <br>
 
+
+## <div align="center">AI PIPELINE🚀</div>
+
+download ROT_AI dataset
+
+```bash
+./scripts/get_ROT.sh
+```
+
+generate txt of testing according data folder path, and need to modify test txt path in data/training_cfg/data_config.yaml.
+
+Example: generate txt of testing 
+
+```bash
+python3 data/training_cfg/generate_dataset_txt.py -d data/datasets/GC_IRCAM_TEST_2023-05-29/ -f data/training_cfg/GC_IRCAM.txt
+python3 data/training_cfg/generate_dataset_txt.py -d data/datasets/IR_Extended_dataset_infer_4class/ -f data/training_cfg/IR_Extend.txt
+python3 data/training_cfg/generate_dataset_txt.py -d data/datasets/ROT_gray_192x192_IRLed/ -f data/training_cfg/ROT_gray.txt
+```
+
+run auto-training to report generator.
+
+```bash
+python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --epochs 1500 --cfg 2head_yolov5n_H05DM011WM0125.yaml  --batch-size 64 --batch-size-tflite 1 --imgch 1 --imgsz 320 --patience 0 --imgsz_tflite 192 --iou-thres 0.5 --conf-thres 0.5 --conf-thres-test 0 --include tflite --device 0 --int8
+```
+
+run training only
+
+```bash
+python3 ai_pipeline.py --data <data yaml path> --cfg <model yaml path> --epochs 10 --batch-size 64 --imgch 1 --imgsz 320 --patience 0 --device 0 --run train
+```
+
+run export only
+
+```bash
+python3 ai_pipeline.py --data <data yaml path> --weights <torch model path> --batch-size 1 --imgch 1 --imgsz 192 --device 0 --include tflite --int8 --run export
+
+```
+
+run inference only
+
+```bash
+python3 ai_pipeline.py --data <data yaml path> --conf-thres-test 0 --device 0 --tflite_model_path <tflite_model_path> --save_dir <xml save folder path> --run inference
+```
+
+</details>
+
 ## <div align="center">YOLOv8 🚀 NEW</div>
 
 We are thrilled to announce the launch of Ultralytics YOLOv8 🚀, our NEW cutting-edge, state-of-the-art (SOTA) model

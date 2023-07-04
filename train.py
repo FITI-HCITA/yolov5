@@ -60,6 +60,7 @@ from utils.metrics import fitness
 from utils.plots import plot_evolve
 from utils.torch_utils import (EarlyStopping, ModelEMA, de_parallel, select_device, smart_DDP, smart_optimizer,
                                smart_resume, torch_distributed_zero_first)
+from utils.hcita.save import save_top_N_model
 
 LOCAL_RANK = int(os.getenv('LOCAL_RANK', -1))  # https://pytorch.org/docs/stable/elastic/run.html
 RANK = int(os.getenv('RANK', -1))
@@ -77,6 +78,11 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     w = save_dir / 'weights'  # weights dir
     (w.parent if evolve else w).mkdir(parents=True, exist_ok=True)  # make dir
     last, best = w / 'last.pt', w / 'best.pt'
+    opt.weights = best
+    # Create directory for saving Top N model 
+    time_text = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    top_n_save_path = save_dir / time_text
+    Path(top_n_save_path).mkdir(parents=True, exist_ok=True)
 
     # Hyperparameters
     if isinstance(hyp, str):
@@ -122,15 +128,15 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
         with torch_distributed_zero_first(LOCAL_RANK):
             weights = attempt_download(weights)  # download if not found locally
         ckpt = torch.load(weights, map_location='cpu')  # load checkpoint to CPU to avoid CUDA memory leak
-        model = Model(cfg or ckpt['model'].yaml, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+        model = Model(cfg or ckpt['model'].yaml, ch=opt.imgch, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
         exclude = ['anchor'] if (cfg or hyp.get('anchors')) and not resume else []  # exclude keys
         csd = ckpt['model'].float().state_dict()  # checkpoint state_dict as FP32
         csd = intersect_dicts(csd, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(csd, strict=False)  # load
         LOGGER.info(f'Transferred {len(csd)}/{len(model.state_dict())} items from {weights}')  # report
     else:
-        model = Model(cfg, ch=3, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
-    amp = check_amp(model)  # check AMP
+        model = Model(cfg, ch=opt.imgch, nc=nc, anchors=hyp.get('anchors')).to(device)  # create
+    amp = check_amp(model, ch=opt.imgch)  # check AMP
 
     # Freeze
     freeze = [f'model.{x}.' for x in (freeze if len(freeze) > 1 else range(freeze[0]))]  # layers to freeze
@@ -189,6 +195,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     # Trainloader
     train_loader, dataset = create_dataloader(train_path,
                                               imgsz,
+                                              opt.imgch,
                                               batch_size // WORLD_SIZE,
                                               gs,
                                               single_cls,
@@ -211,6 +218,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
     if RANK in {-1, 0}:
         val_loader = create_dataloader(val_path,
                                        imgsz,
+                                       opt.imgch,
                                        batch_size // WORLD_SIZE * 2,
                                        gs,
                                        single_cls,
@@ -335,7 +343,7 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                 mloss = (mloss * i + loss_items) / (i + 1)  # update mean losses
                 mem = f'{torch.cuda.memory_reserved() / 1E9 if torch.cuda.is_available() else 0:.3g}G'  # (GB)
                 pbar.set_description(('%11s' * 2 + '%11.4g' * 5) %
-                                     (f'{epoch}/{epochs - 1}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
+                                     (f'{epoch+1}/{epochs}', mem, *mloss, targets.shape[0], imgs.shape[-1]))
                 callbacks.run('on_train_batch_end', model, ni, imgs, targets, paths, list(mloss))
                 if callbacks.stop_training:
                     return
@@ -383,6 +391,17 @@ def train(hyp, opt, device, callbacks):  # hyp is path/to/hyp.yaml or hyp dictio
                     'opt': vars(opt),
                     'git': GIT_INFO,  # {remote, branch, commit} if a git repo
                     'date': datetime.now().isoformat()}
+
+                # Store Top 5 Precision and Recall rate model
+                score_dict = {'p': results[0]
+                            , 'r': results[1]
+                            , 'map50': results[3]
+                            #, 'map5095': results[4]
+                            }
+
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='p', score_dict=score_dict) # Store Top 5 Precision models
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='r', score_dict=score_dict) # Store Top 5 Recall models
+                save_top_N_model( epoch, ckpt=ckpt, store_path=top_n_save_path, filename="yolov5", num_top=5, min_score=opt.top_n_min_score, score_key='avg', score_dict=score_dict) # Store Top 5 Average models
 
                 # Save last, best and delete
                 torch.save(ckpt, last)
@@ -443,6 +462,9 @@ def parse_opt(known=False):
     parser.add_argument('--epochs', type=int, default=100, help='total training epochs')
     parser.add_argument('--batch-size', type=int, default=16, help='total batch size for all GPUs, -1 for autobatch')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='train, val image size (pixels)')
+    parser.add_argument('--imgsz_tflite', type=int, default=192, help='image size for export to tflite')
+    parser.add_argument('--imgch', '--img-ch', type=int, default=3, help='the number of channels of image')
+    parser.add_argument('--top_n_min_score', type=float, default=0.6, help='minimum score for saving top n models')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
     parser.add_argument('--resume', nargs='?', const=True, default=False, help='resume most recent training')
     parser.add_argument('--nosave', action='store_true', help='only save final checkpoint')
@@ -456,11 +478,11 @@ def parse_opt(known=False):
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--multi-scale', action='store_true', help='vary img-size +/- 50%%')
     parser.add_argument('--single-cls', action='store_true', help='train multi-class data as single-class')
-    parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='SGD', help='optimizer')
+    parser.add_argument('--optimizer', type=str, choices=['SGD', 'Adam', 'AdamW'], default='Adam', help='optimizer')
     parser.add_argument('--sync-bn', action='store_true', help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
-    parser.add_argument('--project', default=ROOT / 'runs/train', help='save to project/name')
-    parser.add_argument('--name', default='exp', help='save to project/name')
+    parser.add_argument('--project', default=ROOT / 'results', help='save to project/name')
+    parser.add_argument('--name', default='trial', help='save to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
     parser.add_argument('--quad', action='store_true', help='quad dataloader')
     parser.add_argument('--cos-lr', action='store_true', help='cosine LR scheduler')
@@ -477,10 +499,26 @@ def parse_opt(known=False):
     parser.add_argument('--bbox_interval', type=int, default=-1, help='Set bounding-box image logging interval')
     parser.add_argument('--artifact_alias', type=str, default='latest', help='Version of dataset artifact to use')
 
+    # For export    
+    parser.add_argument('--batch-size-tflite', type=int, default=8, help='tflite batch size for all GPUs, -1 for autobatch')
+    parser.add_argument('--iou-thres', type=float, default=0.5, help='TF.js NMS: IoU threshold')
+    parser.add_argument('--conf-thres', type=float, default=0.5, help='TF.js NMS: confidence threshold')
+    parser.add_argument('--int8', action='store_true', help='CoreML/TF INT8 quantization')
+    parser.add_argument(
+        '--include',
+        nargs='+',
+        default=['torchscript'],
+        help='torchscript, onnx, openvino, engine, coreml, saved_model, pb, tflite, edgetpu, tfjs, paddle')
+
+    # For evaluation
+    parser.add_argument('--conf-thres-test', type=float, default=0.4, help='TF.js NMS: confidence threshold')
+    parser.add_argument('--task', default='val', help='train, val, test, speed or study')
+    parser.add_argument('--save-hybrid', action='store_true', help='save label+prediction hybrid results to *.txt')
+
     return parser.parse_known_args()[0] if known else parser.parse_args()
 
 
-def main(opt, callbacks=Callbacks()):
+def train_procedure(opt, callbacks=Callbacks()):
     # Checks
     if RANK in {-1, 0}:
         print_args(vars(opt))
@@ -511,7 +549,9 @@ def main(opt, callbacks=Callbacks()):
             opt.exist_ok, opt.resume = opt.resume, False  # pass resume to exist_ok and disable resume
         if opt.name == 'cfg':
             opt.name = Path(opt.cfg).stem  # use model.yaml as name
-        opt.save_dir = str(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))
+        local_t = time.localtime()
+        date_str = str(local_t.tm_year) + '_' + str(local_t.tm_mon) + '_' + str(local_t.tm_mday)
+        opt.save_dir = str(increment_path(Path(opt.project) / date_str / opt.name, exist_ok=opt.exist_ok))
 
     # DDP mode
     device = select_device(opt.device, batch_size=opt.batch_size)
@@ -633,10 +673,10 @@ def run(**kwargs):
     opt = parse_opt(True)
     for k, v in kwargs.items():
         setattr(opt, k, v)
-    main(opt)
+    train_procedure(opt)
     return opt
 
 
 if __name__ == '__main__':
     opt = parse_opt()
-    main(opt)
+    train_procedure(opt)
