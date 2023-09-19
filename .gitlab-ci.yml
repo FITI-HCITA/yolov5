@@ -15,3 +15,4 @@ AI_PIPELINE:
   script:
     - ./scripts/get_ROT.sh
     - python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --epochs 1500 --cfg 2head_yolov5n_WM011.yaml  --batch-size 64 --batch-size-tflite 1 --imgch 1 --imgsz 128 --patience 0 --imgsz_tflite 128 --iou-thres 0.4 --conf-thres 0.5 --conf-thres-test 0 --include tflite --device 0 --int8
+  timeout: 3h 30m
