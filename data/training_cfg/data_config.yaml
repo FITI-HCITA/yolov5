@@ -12,10 +12,10 @@ path: ./  # dataset root dir
 train: data/training_cfg/train.txt  # train images (relative to 'path') 118287 images
 val: data/training_cfg/val.txt  # train images (relative to 'path') 5000 images
 test: data/training_cfg/test.txt  # 20288 of 40670 images, submit to https://competitions.codalab.org/competitions/20794
-calib : data/training_cfg/val.txt
+calib : data/training_cfg/cab.txt
 
 # Classes
-nc: 4 # number of classes
-names: ['Socks','PetStool', 'Bottle', 'PowerCable']  # class names
+nc: 10 # number of classes
+names: ['Orange','Apple','Banana','Durian','Vegen','Tomato','Pineapple','DragonFruit','Strawberry','Grape']  # class names
 
 
