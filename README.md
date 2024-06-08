@@ -25,12 +25,16 @@ inference testing data with tflite pretrained model which can download in model 
 ```bash
 python3 tflite_runtime.py -s data/dataset/test/face_001.jpg -w Face_Det_3_001_001.tflite
 ```
-transfer learning with pytorch pretrained model which can download in model zoo[face model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Face_Detection/Yolo/Face_Det_3_001_001.pt)
+transfer learning with pytorch pretrained model which can download in model zoo [face model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Face_Detection/Yolo/Face_Det_3_001_001.pt)
 
 ```bash
 python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights Face_Det_3_001_001.pt --imgsz 320 --imgch 3 --cfg models/2_head_yolov5n_WM022.yaml
 ```
  
+<details open>
+<summary>Example for train from scatch</summary>
+
+
 run training only
 
 ```bash
@@ -55,3 +59,4 @@ run tflite inference for va8801 results only
 ```bash
 python3 tflite_runtime.py -s <image data> -w <tflite model> 
 ```
+</details>
