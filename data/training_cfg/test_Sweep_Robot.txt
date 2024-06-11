@@ -1,0 +1,4 @@
+data/datasets/test/0_0_14_1_0_3.30_PetStool_83.bmp
+data/datasets/test/0_0_1_1_4_3.20_Scale_34.bmp
+data/datasets/test/0_0_32_1_48_3.30_PowerCable_63.bmp
+data/datasets/test/0_0_38_2_0_5.00_Bottle_83.bmp
