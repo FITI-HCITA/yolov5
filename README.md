@@ -30,6 +30,13 @@ transfer learning with pytorch pretrained model which can download in model zoo 
 ```bash
 python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights Face_Det_3_001_001.pt --imgsz 320 --imgch 3 --cfg models/2head_yolov5n_WM022.yaml
 ```
+
+export int8 tflite model
+- The conversion is supported by Python version 3.9.0 and TensorFlow version 3.9.16.
+```bash
+python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --weights Face_Det_3_001_001.pt --batch-size 1 --imgch 3 --imgsz 320 --device 0 --include tflite --int8 --run export
+
+```
  
 <details open>
 <summary>Example for train from scatch</summary>
