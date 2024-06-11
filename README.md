@@ -10,7 +10,7 @@ Clone repo and install [requirements.txt](https://github.com/ultralytics/yolov5/
 [**PyTorch>=1.7**](https://pytorch.org/get-started/locally/).
 
 ```bash
-git clone https://github.com/FITI-HCITA/yolov5.git  # clone
+git clone -b Resnet_VA8801 https://github.com/FITI-HCITA/yolov5.git  # clone
 cd yolov5
 pip install -r requirements.txt  # install
 ```
