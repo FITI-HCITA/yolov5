@@ -34,8 +34,9 @@ python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights 
 
 4.  Export int8 tflite model
 - The conversion is supported by Python version 3.9.0 and TensorFlow version 3.9.16.
+- Please check the image size for export to the TFLite model **--imgsz_tflite [image size]**.
 ```bash
-python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --weights ResNet_2.001.001.pt --batch-size 1 --imgch 3 --imgsz 320 --device 0 --include tflite --int8 --run export
+python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --weights ResNet_2.001.001.pt --batch-size 1 --imgch 3 --imgsz 320 --imgsz_tflite 320 --device 0 --include tflite --int8 --run export
 
 ```
  

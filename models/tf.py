@@ -28,7 +28,7 @@ import torch.nn as nn
 from tensorflow import keras
 
 from models.common import (C3, SPP, SPPF, Bottleneck, BottleneckCSP, C3x, Concat, Conv, CrossConv, DWConv,
-                           DWConvTranspose2d, Focus, autopad)
+                           DWConvTranspose2d, Focus, autopad, Conv_update_imgsz, C3_update_imgsz, SPPF_update_imgsz)
 from models.experimental import MixConv2d, attempt_load
 from models.yolo import Detect, Segment
 from utils.activations import SiLU
@@ -376,6 +376,18 @@ class TFConcat(keras.layers.Layer):
 
     def call(self, inputs):
         return tf.concat(inputs, self.d)
+    
+def check_and_refine(std, x):
+    if x % std == 0:
+        return x
+    else:
+        return ((x // std) + 1) * std
+def num_factors(base,x):
+    count=0
+    while (x%base)==0:
+        x=(x/base)
+        count+=1
+    return count
 
 
 def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
@@ -405,6 +417,7 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
             if m in [BottleneckCSP, C3, C3x]:
                 args.insert(2, n)
                 n = 1
+        
         elif m is nn.BatchNorm2d:
             args = [ch[f]]
         elif m is Concat:
@@ -433,6 +446,180 @@ def parse_model(d, ch, model, imgsz):  # model_dict, input_channels(3)
         ch.append(c2)
     return keras.Sequential(layers), sorted(save)
 
+def parse_model_new(d, ch, model, imagesize):  # model_dict, input_channels(3)
+    #print("####parse model!",d, ch, model, imgsz)
+    LOGGER.info(f"\n{'':>3}{'from':>18}{'n':>3}{'params':>10}  {'module':<40}{'arguments':<30}")
+    anchors, nc, gd, gw, imgsz = d['anchors'], d['nc'], d['depth_multiple'], d['width_multiple'], d['imgsz']
+    na = (len(anchors[0]) // 2) if isinstance(anchors, list) else anchors  # number of anchors
+    no = na * (nc + 5)  # number of outputs = anchors * (classes + 5)
+
+    layers, save, c2 = [], [], ch[-1]  # layers, savelist, ch out
+    ## load and check if there is "concat" op, and search the last Conv before this concat
+    pre_concat_layer_id = {}
+    pre_concat_layer_id = {i: "None" for i, (f, n, m, args) in enumerate(d['backbone'] + d['head'])}
+    pre_SPPF_layer_id = {}
+    pre_SPPF_layer_id = {i: "None" for i, (f, n, m, args) in enumerate(d['backbone'] + d['head'])}
+    neighbor_conv_id = -1
+    concat_layer_list=[]
+    for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']): 
+        if m == "Conv":
+            neighbor_conv_id = i
+        if m == "C3":
+            neighbor_C3_id = i
+        if m == "Concat":
+            pre_concat_layer_id[neighbor_conv_id] = f[-1]
+            concat_layer_list.append(f[-1])
+        if m == "SPPF":
+            pre_SPPF_layer_id[neighbor_C3_id] = "SPPF"
+    pre_SPPF_layer_id[23] = "SPPF"
+    print("\npre_concat_layer_id",pre_concat_layer_id)
+    print("pre SPPF",pre_SPPF_layer_id)
+
+    for i,ele in enumerate(concat_layer_list):
+
+        print("check:",(d['backbone'] + d['head'])[ele][2])
+
+        if (d['backbone'] + d['head'])[ele][2] == "Conv":
+            pass
+            #concat_layer_list[i] = concat_layer_list[i]+1
+        else:
+            #pass
+            #concat_layer_list[i] = concat_layer_list[i]-1
+            concat_layer_list.append(concat_layer_list[i]-1)
+            
+    print(concat_layer_list)
+    print(ch)
+
+    for i, (f, n, m, args) in enumerate(d['backbone'] + d['head']):  # from, number, module, args
+        m_str = m
+        m = eval(m) if isinstance(m, str) else m  # eval strings
+        for j, a in enumerate(args):
+            try:
+                args[j] = eval(a) if isinstance(a, str) else a  # eval strings
+            except NameError:
+                pass
+
+        n = max(round(n * gd), 1) if n > 1 else n  # depth gain
+        #print("this is m",m)
+
+        if m in [
+                nn.Conv2d, Conv, DWConv, DWConvTranspose2d, Bottleneck, SPP, SPPF, MixConv2d, Focus, CrossConv,
+                BottleneckCSP, C3, C3x]:
+            c1, c2 = ch[f], args[0]
+            #print("original :",c2)
+            c2 = make_divisible(c2 * gw, 8) if c2 != no else c2
+            #print("make divisible :",c2)
+            args = [c1, c2, *args[1:]]
+            if m in [BottleneckCSP, C3, C3x]:
+                args.insert(2, n)
+                n = 1
+
+            if m is Conv:
+                if len(args)==5:
+                    conv=Conv_update_imgsz(c1=args[0], c2=args[1], k=args[2], s=args[3], p= args[4], imgsz=imgsz)
+                else:
+                    conv=Conv_update_imgsz(c1=args[0], c2=args[1], k=args[2], s=args[3], imgsz=imgsz)
+                imgsz = conv.update_imgsz()
+                n_imgsz = num_factors(2,imgsz)
+
+                if (c2%4)!=0:
+                    c2 = make_divisible(c2, 4)
+                else:
+                    if(((c2*imgsz)%32)!=0):
+                        new_c2 = make_divisible(c2, 32/(2**n_imgsz))
+                        ## check new_c2
+                        #if (new_c2%32)!=0:
+                        #    new_c2 = make_divisible(new_c2, 32)
+                        c2 = int(new_c2)
+                        args[1] = int(new_c2)
+                    else:
+                        pass
+            elif m is C3:
+                mod = C3_update_imgsz(c1=args[0], c2=args[1],imgsz=imgsz)
+                imgsz = mod.update_imgsz()
+                n_imgsz = num_factors(2,imgsz)
+                #print("C3 's c2 :",c2)
+                if (c2%8)!=0:
+                    c2 = make_divisible(c2, 8)
+                else:
+                    if(((c2*imgsz)%32)!=0):
+                        #print(" c2*featuresz cannot divisible by 32 :",c2,featuresz)
+                        new_c2 = make_divisible(c2, 32/(2**n_imgsz))
+                        c2 = int(new_c2)
+                        args[1] = int(new_c2)
+                        #print("C3 have problem to divisible:featuresz, c2, new_c2",featuresz,c2,new_c2)
+                    else:
+                        pass
+            elif m is SPPF:
+                mod = SPPF_update_imgsz(c1=args[0], c2=args[1],imgsz=imgsz)
+                imgsz = mod.update_imgsz()
+                if (c2%32)!=0:
+                    new_c2 = make_divisible(c2, 32)
+                    c2 = int(new_c2)
+                    args[1] = int(new_c2)
+                else:
+                    pass
+            else:
+                pass
+            
+        elif m is nn.BatchNorm2d:
+            args = [ch[f]]
+        elif m is Concat:
+            c2 = sum(ch[x] for x in f)
+            #c2 = sum(ch[-1 if x == -1 else x + 1] for x in f)
+        elif m is nn.Upsample:
+            c2 = ch[f]
+            imgsz = args[1]*imgsz
+        elif m in [Detect, Segment]:
+            args.append([ch[x + 1] for x in f])
+            if isinstance(args[1], int):  # number of anchors
+                args[1] = [list(range(args[1] * 2))] * len(f)
+            if m is Segment:
+                args[3] = make_divisible(args[3] * gw, 8)
+            args.append(imagesize)
+            #args.append(featuresz)
+        else:
+            c2 = ch[f]
+
+        # specially for pre op of SPPF ! 
+        #if pre_SPPF_layer_id[i]!="None":
+        #    new_c2 = make_divisible(c2, 16)
+        #    print("pre c3 of SPPF, channel from %s to %s" %(c2,new_c2))
+        #    c2 = int(new_c2)
+        #    args[1] = int(new_c2)
+
+        # specially for pre op of concat !
+        if pre_concat_layer_id[i]!="None":
+            new_c2 = ch[pre_concat_layer_id[i]+1]
+            #print("This Step is ",m)
+            #print("Cause the next step is concat the channel gonna from %s to %s"%(c2,new_c2))
+            c2 = int(new_c2)
+            args[1] = int(new_c2)
+
+        if i in concat_layer_list:
+            
+            new_c2 = make_divisible(c2, 16)
+            print("this layer will concat to the head (from %s to %s)" %(c2,new_c2))
+            c2 = int(new_c2)
+            args[1] = int(new_c2)
+
+        tf_m = eval('TF' + m_str.replace('nn.', ''))
+        m_ = keras.Sequential([tf_m(*args, w=model.model[i][j]) for j in range(n)]) if n > 1 \
+            else tf_m(*args, w=model.model[i])  # module
+
+        torch_m_ = nn.Sequential(*(m(*args) for _ in range(n))) if n > 1 else m(*args)  # module
+        t = str(m)[8:-2].replace('__main__.', '')  # module type
+        np = sum(x.numel() for x in torch_m_.parameters())  # number params
+        m_.i, m_.f, m_.type, m_.np = i, f, t, np  # attach index, 'from' index, type, number params
+        LOGGER.info(f'{i:>3}{str(f):>18}{str(n):>3}{np:>10}  {t:<40}{str(args):<30}')  # print
+        save.extend(x % i for x in ([f] if isinstance(f, int) else f) if x != -1)  # append to savelist
+        layers.append(m_)
+        ch.append(c2)
+    print("ch",ch)
+    return keras.Sequential(layers), sorted(save)
+
+
+
 
 class TFModel:
     # TF YOLOv5 model
@@ -450,7 +637,8 @@ class TFModel:
         if nc and nc != self.yaml['nc']:
             LOGGER.info(f"Overriding {cfg} nc={self.yaml['nc']} with nc={nc}")
             self.yaml['nc'] = nc  # override yaml value
-        self.model, self.savelist = parse_model(deepcopy(self.yaml), ch=[ch], model=model, imgsz=imgsz)
+        ## if we need to meet the rules of VA8801 : use parse_model_new
+        self.model, self.savelist = parse_model_new(deepcopy(self.yaml), ch=[ch], model=model, imagesize=imgsz)
 
     def predict(self,
                 inputs,
