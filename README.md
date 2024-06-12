@@ -17,21 +17,22 @@ pip install -r requirements.txt  # install
 
 </details>
 
-download custom dataset or use example data
+## <div align="center">How to Generate Yolov5 model for VA8801?</div>
+1. Download custom dataset or use example data
 
-inference testing data with tflite pretrained model which can download in model zoo
+2.  Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
 [ResNet model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ClassicalModels/resnet/ObjectDetection/ResNet_2.001.001.tflite)
 
 ```bash
 python3 tflite_runtime.py -s data/dataset/test/esl_001.jpg -w ResNet_2.001.001.tflite
 ```
-transfer learning with pytorch pretrained model which can download in model zoo [ResNet model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ClassicalModels/resnet/ObjectDetection/ResNet_2.001.001.pt)
+3.  Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [ResNet model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ClassicalModels/resnet/ObjectDetection/ResNet_2.001.001.pt)
 
 ```bash
 python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights ResNet_2.001.001.pt --imgsz 320 --imgch 3 --cfg models/resnet50.yaml
 ```
 
-export int8 tflite model
+4.  Export int8 tflite model
 - The conversion is supported by Python version 3.9.0 and TensorFlow version 3.9.16.
 ```bash
 python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --weights ResNet_2.001.001.pt --batch-size 1 --imgch 3 --imgsz 320 --device 0 --include tflite --int8 --run export
