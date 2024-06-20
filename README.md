@@ -24,24 +24,28 @@ pip install -r requirements.txt  # install
 [Sweep Robot Detection model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Sweep_Robot_Detection/Yolo/VA8801_ROTBOT_1.002.002-int8.tflite)
 
 ```bash
-python tflite_runtime.py -s data/datasets/test/0_0_14_1_0_3.30_PetStool_83.bmp -w /path/to/VA8801_ROTBOT_1.002.002-int8.tflite --img_ch 1
+python tflite_runtime.py -s data/datasets/test/0_0_14_1_0_3.30_PetStool_83.bmp -w path/VA8801_ROTBOT_1.002.002-int8.tflite --img_ch 1
 ```
 3. Train model: Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [Sweep Robot Detection model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Sweep_Robot_Detection/Yolo/VA8801_ROTBOT_1.002.002.pt)
-- Please check your model path **--weights "pretrained pytorch model path"**
+- Please check your local model path **--weights "pretrained pytorch model path"**
+    
+    Example of your local model folder
+    
+    path: D:/VA8801_Model_Zoo/ObjectDetection/Sweep_Robot_Detection/Yolo
 - Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
 
 ```bash
-python train.py --device 0 --data data/training_cfg/data_config.yaml --weights /path/to/VA8801_ROTBOT_1.002.002.pt --imgsz 320 --imgch 1 --cfg models/2head_yolov5n_WM028.yaml
+python train.py --device 0 --data data/training_cfg/data_config.yaml --weights path/VA8801_ROTBOT_1.002.002.pt --imgsz 320 --imgch 1 --cfg models/2head_yolov5n_WM028.yaml
 ```
 
 4.  Export int8 tflite model
-- The conversion is supported by **Python version 3.9.0** and **TensorFlow version 3.9.16**.
-- Please check your model path **--weights "your pytorch model path"**
+- The conversion is supported by **Python version 3.9.0** and **TensorFlow version 2.13.0**.
+- Please check your local model path **--weights "your pytorch model path"**
 - Please check the image size for export to the TFLite model **--imgsz_tflite "image size"**.
 - Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
 
 ```bash
-python ai_pipeline.py --data data/training_cfg/data_config.yaml --weights /path/to/VA8801_ROTBOT_1.002.002.pt --batch-size 1 --imgch 1 --imgsz 320 --imgsz_tflite 320 --device 0 --include tflite --int8 --run export
+python ai_pipeline.py --data data/training_cfg/data_config.yaml --weights path/VA8801_ROTBOT_1.002.002.pt --batch-size 1 --imgch 1 --imgsz 320 --imgsz_tflite 320 --device 0 --include tflite --int8 --run export
 
 ```
 
