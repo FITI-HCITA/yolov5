@@ -9,6 +9,9 @@ Clone repo and install [requirements.txt](https://github.com/ultralytics/yolov5/
 [**Python>=3.7.0**](https://www.python.org/) environment, including
 [**PyTorch>=1.7**](https://pytorch.org/get-started/locally/).
 
+- It is recommended to use Anaconda to set up the Python environment.
+- The TFlite conversion is supported by **Python version 3.9.0** and **TensorFlow version 2.13.0**.
+
 ```bash
 git clone -b ROT_IRAI_VA8801 https://github.com/FITI-HCITA/yolov5.git  # clone
 cd yolov5
@@ -39,7 +42,6 @@ python train.py --device 0 --data data/training_cfg/data_config.yaml --weights p
 ```
 
 4.  Export int8 tflite model
-- The conversion is supported by **Python version 3.9.0** and **TensorFlow version 2.13.0**.
 - Please check your local model path **--weights "your pytorch model path"**
 - Please check the image size for export to the TFLite model **--imgsz_tflite "image size"**.
 - Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
