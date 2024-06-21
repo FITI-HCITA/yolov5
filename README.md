@@ -75,7 +75,7 @@ python ai_pipeline.py --data data/training_cfg/data_config.yaml --weights path/H
 run training only
 
 ```bash
-python3 ai_pipeline.py --data <data yaml path> --cfg <model yaml path> --epochs 10 --batch-size 64 --imgch 1 --imgsz 320 --patience 0 --device 0 --run train
+python ai_pipeline.py --data <data yaml path> --cfg <model yaml path> --epochs 10 --batch-size 64 --imgch 1 --imgsz 320 --patience 0 --device 0 --run train
 ```
 
 run export only
