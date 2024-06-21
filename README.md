@@ -57,7 +57,7 @@ python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights 
 
 4.  Export int8 tflite model
 - Please check your local model path **--weights "your pytorch model path"**
-    - After training, your trained model will be saved at ``results/yyyy_MM_DD/trialx/weights/best.pt``
+    - After training, your trained model will be saved at ``results/yyyy_mm_dd/trialx/weights/best.pt``
 - Please check the image size for export to the TFLite model **--imgsz_tflite "image size"**.
 - Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
 
