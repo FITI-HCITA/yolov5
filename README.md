@@ -37,6 +37,7 @@ git clone https://github.com/FITI-HCITA/VA8801_Model_Zoo.git
 2.  Inference: Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
 [Hand model](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Hand_Gestures/Hand_Gestures_3_001_001.tflite)
 
+- Please check your local model path **-w "pretrained pytorch model path"**
 
     Example of your local model folder
     
