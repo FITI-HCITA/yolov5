@@ -118,12 +118,18 @@ if __name__ == '__main__':
     # Postprocess of yolov5n
     bbox = yolov5_postprocess(output, confThr=args.conf_thres, iou_thres=args.iou_thres)
     print(bbox)
+    
+    result_img = image
+    result_img = cv2.resize(result_img,(320,320))
     # result_img = np.array(input_data1).astype(np.float32)
     # result_img = result_img.reshape(320, 320, 3)
-    # result_img = cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR)
-    # for i, det in enumerate(bbox): 
-    #     xyxy = (det[:4]*320.0).round()
-    #     conf = det[4].round()
-    #     cv2.rectangle(result_img, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 0, 255), 1)
-            
-    # cv2.imwrite(os.path.dirname(os.path.abspath(__file__)) + '/dataset/yolov5n/result.jpg', result_img)
+    result_img = cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR)
+    for i, det in enumerate(bbox): 
+        xyxy = (det[:4]*320.0).round()
+        conf = det[4].round()
+        cv2.rectangle(result_img, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 0, 255), 1)
+
+    os.makedirs(os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference', exist_ok=True)       
+    cv2.imwrite(os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference/result.jpg', result_img)
+
+    print("prediction saved at: ", os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference/result.jpg')
