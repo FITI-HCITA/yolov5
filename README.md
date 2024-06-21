@@ -9,6 +9,10 @@ Clone repo and install [requirements.txt](https://github.com/ultralytics/yolov5/
 [**Python>=3.7.0**](https://www.python.org/) environment, including
 [**PyTorch>=1.7**](https://pytorch.org/get-started/locally/).
 
+- It is recommended to use Anaconda to set up the Python environment.
+- The TFlite conversion is supported by **Python version 3.9.0** and **TensorFlow version 2.13.0**.
+
+
 ```bash
 git clone -b human_detect_VA8801 https://github.com/FITI-HCITA/yolov5.git  # clone
 cd yolov5
@@ -18,38 +22,54 @@ pip install -r requirements.txt  # install
 </details>
 
 ## <div align="center">How to Generate Yolov5 model for VA8801?</div>
-1. Download custom dataset or use example data
+1. Prepare Dataset: Download custom dataset or use example data
 
-2.  Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
+2.  Inference: Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
 [Human model (low power)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_6_001_001.tflite)
 
+- Please check your local model path **-w "pretrained pytorch model path"**
+    
+    Example of your local model folder
+    
+    path: D:/VA8801_Model_Zoo/ObjectDetection/Human_Detection/Yolo
+
 ```bash
-python3 tflite_runtime.py -s data/dataset/test/human_001.jpg -w HUMAN_DET_6_001_001.tflite
+python tflite_runtime.py -s data/dataset/test/human_001.jpg -w path/HUMAN_DET_6_001_001.tflite
 ```
-2.  Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
+2.  Infernece: InferneInference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
 [Human model (normal)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_7_002_002.tflite)
 
 ```bash
-python3 tflite_runtime.py -s data/dataset/test/human_002.jpg -w HUMAN_DET_7_002_002.tflite
+python tflite_runtime.py -s data/dataset/test/human_002.jpg -w path/HUMAN_DET_7_002_002.tflite
 ```
 
-3.  Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [Human model (low power)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_6_001_001.pt)
+3.  Train model: Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [Human model (low power)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_6_001_001.pt)
+
+- Please check your local model path **--weights "pretrained pytorch model path"**
+    
+    Example of your local model folder
+    
+    path: D:/VA8801_Model_Zoo/ObjectDetection/Human_Detection/Yolo
+- Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
+
 
 ```bash
-python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights HUMAN_DET_6_001_001.pt --imgsz 96 --imgch 1 --cfg models/yolov5n_WM005_DM033.yaml
+python train.py --device 0 --data data/training_cfg/data_config.yaml --weights path/HUMAN_DET_6_001_001.pt --imgsz 96 --imgch 1 --cfg models/yolov5n_WM005_DM033.yaml
 ```
 
-3.  Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [Human model (normal)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_7_002_002.pt)
+3.  Train model: Transfer learning with a PyTorch pretrained model, which can be downloaded from the model zoo for the [Human model (normal)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_7_002_002.pt)
 
 ```bash
-python3 train.py --device 0 --data data/training_cfg/data_config.yaml --weights HUMAN_DET_7_002_002.pt --imgsz 320 --imgch 3 --cfg models/2_head_yolov5n_WM022.yaml
+python train.py --device 0 --data data/training_cfg/data_config.yaml --weights path/HUMAN_DET_7_002_002.pt --imgsz 320 --imgch 3 --cfg models/2_head_yolov5n_WM022.yaml
 ```
 
 4.  Export int8 tflite model
-- The conversion is supported by Python version 3.9.0 and TensorFlow version 3.9.16.
-- Please check the image size for export to the TFLite model **--imgsz_tflite [image size]**.
+- Please check your local model path **--weights "your pytorch model path"**
+- Please check the image size for export to the TFLite model **--imgsz_tflite "image size"**.
+- Please check your PC device **--device "cuda device, i.e. 0 or 0,1,2,3 or cpu"**
+
 ```bash
-python3 ai_pipeline.py --data data/training_cfg/data_config.yaml --weights HUMAN_DET_7_002_002.pt --batch-size 1 --imgch 3 --imgsz 320 --imgsz_tflite 320 --device 0 --include tflite --int8 --run export
+python ai_pipeline.py --data data/training_cfg/data_config.yaml --weights path/HUMAN_DET_7_002_002.pt --batch-size 1 --imgch 3 --imgsz 320 --imgsz_tflite 320 --device 0 --include tflite --int8 --run export
 
 ```
 
