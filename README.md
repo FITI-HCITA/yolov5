@@ -81,19 +81,19 @@ python3 ai_pipeline.py --data <data yaml path> --cfg <model yaml path> --epochs 
 run export only
 
 ```bash
-python3 ai_pipeline.py --data <data yaml path> --weights <torch model path> --batch-size 1 --imgch 1 --imgsz 192 --device 0 --include tflite --int8 --run export
+python ai_pipeline.py --data <data yaml path> --weights <torch model path> --batch-size 1 --imgch 1 --imgsz 192 --device 0 --include tflite --int8 --run export
 
 ```
 
 run inference only
 
 ```bash
-python3 ai_pipeline.py --data <data yaml path> --conf-thres-test 0 --device 0 --tflite_model_path <tflite_model_path> --save_dir <xml save folder path> --run inference
+python ai_pipeline.py --data <data yaml path> --conf-thres-test 0 --device 0 --tflite_model_path <tflite_model_path> --save_dir <xml save folder path> --run inference
 ```
 
 run tflite inference for va8801 results only
 
 ```bash
-python3 tflite_runtime.py -s <image data> -w <tflite model> 
+python tflite_runtime.py -s <image data> -w <tflite model> 
 ```
 </details>
