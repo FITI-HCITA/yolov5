@@ -126,4 +126,8 @@ if __name__ == '__main__':
          conf = det[4].round()
          cv2.rectangle(result_img, (int(xyxy[0]), int(xyxy[1])), (int(xyxy[2]), int(xyxy[3])), (0, 0, 255), 1)
             
-    cv2.imwrite('result.jpg', result_img)
+    os.makedirs(os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference', exist_ok=True)       
+    cv2.imwrite(os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference/result.jpg', result_img)
+
+    print("prediction saved at: ", os.path.dirname(os.path.abspath(__file__)) + '/data/dataset/inference/result.jpg')
+
