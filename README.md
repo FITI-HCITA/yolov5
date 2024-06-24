@@ -12,6 +12,7 @@ See the [YOLOv5 Docs](https://docs.ultralytics.com/yolov5) for full documentatio
 conda create --name yolov5 python=3.9.0
 conda activate yolov5
 pip install tensorflow==2.13.0
+pip install Pillow==9.5
 ```
 
 2. Clone repo and install [requirements.txt](https://github.com/ultralytics/yolov5/blob/master/requirements.txt) in a
