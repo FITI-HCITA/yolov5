@@ -44,7 +44,10 @@ def save_top_N_model( epoch, ckpt, store_path, filename, num_top, min_score, sco
 
 
         for f in file_path_list:
-            params = os.path.splitext(f)[0].split('/')[-1].split('_')
+            if os.name == 'posix':
+                params = os.path.splitext(f)[0].split('/')[-1].split('_')
+            elif os.name == 'nt':
+                params = os.path.splitext(f)[0].split('\\')[-1].split('_')
 
             if score_key == 'avg':
                 pscore = [s for s in params if 'p' in s]
@@ -72,7 +75,7 @@ def save_top_N_model( epoch, ckpt, store_path, filename, num_top, min_score, sco
                 file_scores.append(score)
 
         if score_key == 'avg':
-            file_scores = [(p+r)*0.5 for p,r in zip(file_pscores, file_rscores)]
+            file_scores = [(p+float(r))*0.5 for p,r in zip(file_pscores, file_rscores)]
         score_index = np.argsort(file_scores)[::-1]
         rm_idx = score_index[num_top:]
         for idx in rm_idx:
