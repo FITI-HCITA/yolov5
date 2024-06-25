@@ -48,7 +48,7 @@ git clone https://github.com/FITI-HCITA/VA8801_Model_Zoo.git
 ```bash
 python tflite_runtime.py -s data/dataset/test/human_001.jpg -w path/HUMAN_DET_6_001_001.tflite --img_ch 1
 ```
-2.  Infernece: InferneInference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
+2.  Infernece: Inference testing data with a TFLite pretrained model, which can be downloaded from the model zoo for the
 [Human model (input=320x320x3)](https://github.com/FITI-HCITA/VA8801_Model_Zoo/blob/main/ObjectDetection/Human_Detection/Yolo/HUMAN_DET_7_002_002.tflite)
 
 ```bash
